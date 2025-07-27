@@ -49,7 +49,7 @@ ADMIN_IDS = [
 # 1. Send your desired photo to @RawDataBot or @get_id_bot on Telegram.
 # 2. Look for the 'file_id' in the JSON response (usually the longest one in the 'photo' array).
 # 3. Copy that exact string and paste it here.
-WELCOME_PHOTO_FILE_ID = "AgACAgUAAxkBAAE4d9hohHQo4HHzmW25-Sa5pb2vPPMY-gACEscxG6TcIVROLwmef3SonQEAAwIAA3MAAzYE" # <<< VERIFY AND REPLACE THIS EXACTLY
+WELCOME_PHOTO_FILE_ID = "AgACAgUAAxkBAAE4d9hohHQo4HHzmW25-Sa5pb2vPPMY-gACEscxG6TcIVROLwmefnSo_AQADAgADeQADNgU" # <<< VERIFY AND REPLACE THIS EXACTLY
 
 # Database of your videos.
 # Key: Deep link code (e.g., 'episode1', 'promo').
@@ -70,7 +70,7 @@ VIDEO_DATABASE = {
 \u2023 Season: 01 | Ep: 01
 \u2023 Audio track: Hind , English| Official
 \u2023 Quality: 480p</b>
-\u261b\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2022
+\u261b\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2022
 <blockquote>\u25a3 POWERED BY: @beeetanime
 \u25a3 MAIN Channel: @Beat_Hindi_Dubbed
 \ufeff\u261b\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2022</blockquote>
@@ -480,9 +480,9 @@ async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE, u
     for channel_id in REQUIRED_CHANNELS:
         member_status = "unknown" # Default status for logging
         try:
-            logger.info(f"Attempting to get chat member status for user {user_id} in channel {channel_id} with timeout...")
-            # Added a timeout to get_chat_member to prevent indefinite hanging
-            chat_member = await context.bot.get_chat_member(chat_id=channel_id, user_id=user_id, timeout=15) # Increased timeout to 15s
+            logger.info(f"Attempting to get chat member status for user {user_id} in channel {channel_id}...")
+            # REMOVED: timeout=15 as it's not supported by this PTB version
+            chat_member = await context.bot.get_chat_member(chat_id=channel_id, user_id=user_id)
             member_status = chat_member.status
             logger.info(f"Successfully got chat member status for user {user_id} in {channel_id}. Status: {member_status}")
 
@@ -529,7 +529,7 @@ async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE, u
             logger.error(f"Unexpected error checking membership for channel {channel_id} (user {user_id}): {e}. Adding generic join button.", exc_info=True)
             not_joined_channels_info.append({"name": f"Join Channel {channel_id}", "link": "https://t.me/"})
         finally:
-            logger.info(f"Finished membership check attempt for channel {channel_id}. Final status for {user_id}: {member_status if member_status != 'unknown' else 'error/unknown'}")
+            logger.info(f"Completed membership check attempt for channel {channel_id}. Final status for {user_id}: {member_status if member_status != 'unknown' else 'error/unknown'}")
 
 
     if all_joined:
