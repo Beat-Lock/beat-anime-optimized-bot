@@ -5,11 +5,7 @@ import logging
 import os
 import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-
-# --- Flask imports for webhook server ---
-from flask import Flask, request, jsonify
-import asyncio
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 # --- Configuration ---
 # Get your bot token from @BotFather
@@ -156,7 +152,7 @@ VIDEO_DATABASE = {
 \u261b\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2022
 <blockquote>\u25a3 POWERED BY: @beeetanime
 \u25a3 MAIN Channel: @Beat_Hindi_Dubbed
-\ufeff\u261b\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2022</blockquote>
+\ufeff\u261b\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2022</blockquote>
 <blockquote>If video is not in Hindi / English can change from VLC media Player</blockquote>""",
     },
      "S1_Ep3_720p": {
@@ -170,7 +166,7 @@ VIDEO_DATABASE = {
 \u261b\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2022
 <blockquote>\u25a3 POWERED BY: @beeetanime
 \u25a3 MAIN Channel: @Beat_Hindi_Dubbed
-\ufeff\u261b\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2022</blockquote>
+\ufeff\u261b\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2022</blockquote>
 <blockquote>If video is not in Hindi / English can change from VLC media Player</blockquote>""",
     },
      "S1_Ep3_1080p": {
@@ -457,6 +453,16 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         except Exception as e:
             logger.error(f"Failed to send error message to user: {e}")
 
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Echo the user message. This is a debug handler."""
+    if update.message and update.message.text:
+        logger.info(f"Received message from {update.effective_user.id}: {update.message.text}")
+        # await update.message.reply_text(f"You said: {update.message.text}") # Uncomment to echo back
+    elif update.callback_query:
+        logger.info(f"Received callback query from {update.effective_user.id}: {update.callback_query.data}")
+    else:
+        logger.info(f"Received non-text update: {update}")
+
 
 async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> bool:
     """
@@ -487,15 +493,17 @@ async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE, u
                     not_joined_channels_info.append({"name": f"Join Channel {channel_id}", "link": "https://t.me/"})
 
         except Exception as e:
-            logger.error(f"Error checking membership for channel {channel_id} (Is bot admin?): {e}")
+            logger.error(f"Error checking membership for channel {channel_id} (Is bot admin?): {e}", exc_info=True) # Added exc_info
             all_joined = False
             # Fallback for when bot can't even get chat member info (e.g., not admin in channel)
             not_joined_channels_info.append({"name": f"Join Channel {channel_id}", "link": "https://t.me/"})
 
 
     if all_joined:
+        logger.info(f"User {user_id} is a member of all required channels.")
         return True # User is a member of all required channels
     else:
+        logger.info(f"User {user_id} is NOT a member of all required channels. Prompting to join.")
         # Build inline keyboard buttons for channels
         keyboard_buttons = []
         for channel_info in not_joined_channels_info:
@@ -506,17 +514,25 @@ async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE, u
 
         reply_markup = InlineKeyboardMarkup(keyboard_buttons)
 
-        await context.bot.send_photo(
-            chat_id=update.effective_chat.id,
-            photo=WELCOME_PHOTO_FILE_ID,
-            caption=(
-                f"👋 Hey there, <b>{update.effective_user.first_name}</b>! Welcome aboard! 🎉\n\n"
-                "To dive into our awesome content, there's just one quick step:\n"
-                "Please join the <b>exclusive channels below</b> by tapping the buttons. 👇"
-            ),
-            reply_markup=reply_markup,
-            parse_mode="HTML",
-        )
+        try:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=WELCOME_PHOTO_FILE_ID,
+                caption=(
+                    f"👋 Hey there, <b>{update.effective_user.first_name}</b>! Welcome aboard! 🎉\n\n"
+                    "To dive into our awesome content, there's just one quick step:\n"
+                    "Please join the <b>exclusive channels below</b> by tapping the buttons. 👇"
+                ),
+                reply_markup=reply_markup,
+                parse_mode="HTML",
+            )
+            logger.info(f"Sent join channels prompt to user {user_id}.")
+        except Exception as e:
+            logger.error(f"Failed to send join channels prompt to user {user_id}: {e}", exc_info=True)
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="I couldn't send the join channels message. Please ensure your bot has permission to send photos and messages."
+            )
         
         return False
 
@@ -537,12 +553,15 @@ async def send_resend_button_job(context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("🔄 Get Video Again", callback_data=f"resend_{video_code}")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text="Your video has been deleted. By clicking the button below, you can get your video again.",
-        reply_markup=reply_markup
-    )
-    logger.info(f"Resend button message sent for video code {video_code} to chat {chat_id}.")
+    try:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="Your video has been deleted. By clicking the button below, you can get your video again.",
+            reply_markup=reply_markup
+        )
+        logger.info(f"Resend button message sent for video code {video_code} to chat {chat_id}.")
+    except Exception as e:
+        logger.error(f"Error sending resend button for {video_code} to {chat_id}: {e}", exc_info=True)
 
 
 async def send_video_file(update: Update, context: ContextTypes.DEFAULT_TYPE, video_info: dict):
@@ -651,6 +670,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     Handles the /start command, welcomes the user, checks membership,
     and handles deep linking with admin restrictions.
     """
+    logger.info(f"Start command received from user {update.effective_user.id} in chat {update.effective_chat.id}.")
     user_id = update.effective_user.id
     user_name = update.effective_user.first_name
 
@@ -664,6 +684,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Handle deep linking (when user types /start with an argument, e.g., /start squidgame_ep1)
     if context.args:
         video_code = context.args[0]
+        logger.info(f"Start command with deep link '{video_code}' received from {user_id}.")
         if user_is_admin:
             # ADMIN: Allow using /start with a code
             if video_code in VIDEO_DATABASE:
@@ -678,7 +699,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                          "Please check your video database for correct codes.",
                     parse_mode="HTML"
                 )
-                
+                logger.warning(f"Admin {user_id} used unknown deep link: {video_code}")
         else:
             # NON-ADMIN: Deny /start code command
             await context.bot.send_message(
@@ -687,7 +708,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                      "Please use the direct links provided by the admin or through our official channels.",
                 parse_mode="HTML"
             )
+            logger.info(f"Non-admin user {user_id} attempted to use deep link: {video_code}")
     else: # User just sent /start (no arguments)
+        logger.info(f"Plain start command received from {user_id}.")
         # Send the general welcome message, customized by admin status
         if user_is_admin:
             welcome_caption = (
@@ -703,12 +726,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "provided by the admin or found in our official channels.\n\n"
                 "_Enjoy the show!_"
             )
-        await context.bot.send_photo(
-            chat_id=update.effective_chat.id,
-            photo=WELCOME_PHOTO_FILE_ID,
-            caption=welcome_caption,
-            parse_mode="HTML"
-        )
+        try:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=WELCOME_PHOTO_FILE_ID,
+                caption=welcome_caption,
+                parse_mode="HTML"
+            )
+            logger.info(f"Sent general welcome message to user {user_id}.")
+        except Exception as e:
+            logger.error(f"Failed to send general welcome message to user {user_id}: {e}", exc_info=True)
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="I couldn't send the welcome message. Please ensure your bot has permission to send photos and messages."
+            )
+
 
 async def check_join_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -717,6 +749,7 @@ async def check_join_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """
     query = update.callback_query
     await query.answer() # Acknowledge the callback query
+    logger.info(f"Callback query 'check_join_again' received from user {query.from_user.id}.")
 
     user_id = query.from_user.id
 
@@ -725,6 +758,7 @@ async def check_join_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.edit_message_text(
             text="🎉 Great! Checking your access now..."
         )
+        logger.info(f"User {user_id} now joined all channels. Re-running start.")
         # Re-run start to process potential deep link or show main welcome.
         # This is a simplified approach; in a complex bot, you might store
         # the original command/context to resume precisely.
@@ -735,6 +769,7 @@ async def check_join_again(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             text="It seems you haven't joined all channels yet. Please make sure you join all of them and try again.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ I have joined", callback_data="check_join_again")]])
         )
+        logger.info(f"User {user_id} still not joined all channels after 'check_join_again'.")
 
 async def resend_video_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -747,6 +782,7 @@ async def resend_video_callback(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = query.from_user.id
     # Extract the video code from the callback data (e.g., "resend_S1_Ep1_480p")
     video_code = query.data.split('_', 1)[1]
+    logger.info(f"Callback query 'resend_{video_code}' received from user {user_id}.")
 
     # Check force join membership first
     if not await check_membership(update, context, user_id):
@@ -762,6 +798,7 @@ async def resend_video_callback(update: Update, context: ContextTypes.DEFAULT_TY
             chat_id=update.effective_chat.id,
             text="Sorry, I couldn't find that video to resend. The code might be invalid."
         )
+        logger.warning(f"User {user_id} requested resend for unknown video code: {video_code}")
 
 # --- Initial Setup for PTB Application (runs once per Gunicorn worker) ---
 try:
@@ -773,6 +810,7 @@ try:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(check_join_again, pattern="^check_join_again$"))
     application.add_handler(CallbackQueryHandler(resend_video_callback, pattern="^resend_"))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo)) # Add echo handler
     application.add_error_handler(error_handler) # Add the error handler
 
     # Initialize the application. This needs an event loop, which gevent provides.
@@ -818,8 +856,13 @@ async def telegram_webhook():
         return jsonify({"status": "error", "message": "Bot not ready (Application uninitialized)"}), 503
 
     try:
-        # Get the update from the request
-        update = Update.de_json(request.get_json(force=True), application.bot)
+        # Get the raw JSON data from the request
+        json_data = request.get_json(force=True)
+        logger.info(f"Received raw webhook JSON: {json_data}") # Log raw JSON
+
+        # Convert raw JSON to Telegram Update object
+        update = Update.de_json(json_data, application.bot)
+        logger.info(f"Parsed Telegram Update: {update}") # Log parsed Update object
         
         # Process the update using the globally initialized application instance.
         # asyncio.create_task is used here to run the update processing asynchronously
