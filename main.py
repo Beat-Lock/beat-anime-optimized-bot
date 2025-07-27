@@ -857,7 +857,7 @@ try:
     application.add_error_handler(error_handler) # Add the error handler
 
     # Initialize the application. This needs an event loop, which gevent provides.
-    loop = asyncio.get_event_event_loop() # Use get_event_loop for older Python versions if needed, or get_running_loop
+    loop = asyncio.get_event_loop() # <<< CORRECTED THIS LINE
     loop.run_until_complete(application.initialize())
     logger.info(f"PTB Application initialized. _initialized: {application._initialized}")
 
