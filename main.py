@@ -7,6 +7,10 @@ import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
+# --- Flask imports for webhook server ---
+from flask import Flask, request, jsonify # <<< THIS LINE MUST BE HERE AT THE TOP
+import asyncio
+
 # --- Configuration ---
 # Get your bot token from @BotFather
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE") # <<< IMPORTANT: Set this in Render environment variables
@@ -432,7 +436,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING) # Suppress verbose httpx lo
 logger = logging.getLogger(__name__)
 
 # Create the Flask app instance
-app = Flask(__name__)
+app = Flask(__name__) # This line is now correctly placed after the Flask import.
 
 # Global variable for the PTB Application instance, initialized once per worker
 application = None
@@ -890,6 +894,5 @@ if __name__ == "__main__":
         app.run(host=WEBHOOK_LISTEN_IP, port=WEBHOOK_PORT, debug=True, use_reloader=False)
     else:
         logger.info("WEBHOOK_URL not set. Running bot in polling mode (for local development/testing).")
-        # In polling mode, the application instance needs to be explicitly run.
-        # The 'application' variable is already set up from the module-level initialization.
+        # In polling mode, the 'application' variable is already set up from the module-level initialization.
         application.run_polling(allowed_updates=Update.ALL_TYPES)
