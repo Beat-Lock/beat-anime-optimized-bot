@@ -49,7 +49,7 @@ ADMIN_IDS = [
 # 1. Send your desired photo to @RawDataBot or @get_id_bot on Telegram.
 # 2. Look for the 'file_id' in the JSON response (usually the longest one in the 'photo' array).
 # 3. Copy that exact string and paste it here.
-WELCOME_PHOTO_FILE_ID = "AgACAgUAAxkBAAE4d9hohHQo4HHzmW25-Sa5pb2vPPMY-gACEscxG6TcIVROLwmefnSo_AQADAgADeQADNgU" # <<< VERIFY AND REPLACE THIS EXACTLY
+WELCOME_PHOTO_FILE_ID = "AgACAgUAAxkBAAE4d9hohHQo4HHzmW25-Sa5pb2vPPMY-gACEscxG6TcIVROLwmef3SonQEAAwIAA3MAAzYE" # <<< VERIFY AND REPLACE THIS EXACTLY
 
 # Database of your videos.
 # Key: Deep link code (e.g., 'episode1', 'promo').
@@ -481,7 +481,7 @@ async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE, u
         member_status = "unknown" # Default status for logging
         try:
             logger.info(f"Attempting to get chat member status for user {user_id} in channel {channel_id}...")
-            # REMOVED: timeout=15 as it's not supported by this PTB version
+            # Removed timeout as it caused TypeError in your environment
             chat_member = await context.bot.get_chat_member(chat_id=channel_id, user_id=user_id)
             member_status = chat_member.status
             logger.info(f"Successfully got chat member status for user {user_id} in {channel_id}. Status: {member_status}")
@@ -502,31 +502,31 @@ async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE, u
                         logger.warning(f"Could not get invite link for channel {channel_id} (no invite_link or username). Displaying generic button.")
                         not_joined_channels_info.append({"name": f"Join {channel_name if channel_name else 'Channel'}", "link": "https://t.me/"}) # Fallback
                 except TelegramError as te: # Specific Telegram API errors
-                    logger.error(f"Telegram API error getting chat info for {channel_id} (Bot permissions?): {te}. Adding generic join button.", exc_info=True)
+                    logger.exception(f"Telegram API error getting chat info for {channel_id} (Bot permissions?): {te}. Adding generic join button.") # Use logger.exception
                     not_joined_channels_info.append({"name": f"Join Channel {channel_id}", "link": "https://t.me/"})
                 except Exception as e: # Other unexpected errors
-                    logger.error(f"Unexpected error getting chat info for {channel_id}: {e}. Adding generic join button.", exc_info=True)
+                    logger.exception(f"Unexpected error getting chat info for {channel_id}: {e}. Adding generic join button.") # Use logger.exception
                     not_joined_channels_info.append({"name": f"Join Channel {channel_id}", "link": "https://t.me/"})
 
         except TelegramError as te: # Specific Telegram API errors for get_chat_member
             all_joined = False
-            logger.error(
+            logger.exception( # Use logger.exception to get full traceback
                 f"Telegram API error checking membership for channel {channel_id} "
                 f"(Bot permissions? Incorrect ID?): {te}. User {user_id} marked as not joined. "
-                f"Adding generic join button. Please check bot admin status and 'Can see members' permission.", 
-                exc_info=True
+                f"Adding generic join button. Please check bot admin status and 'Can see members' permission."
             )
             # Try to get channel name even if get_chat_member failed, for better button text
             try:
                 chat_info_for_name = await context.bot.get_chat(chat_id=channel_id)
                 channel_name_for_button = chat_info_for_name.title
-            except:
+            except Exception as e:
+                logger.warning(f"Could not fetch chat info for button name for channel {channel_id} after get_chat_member failed: {e}")
                 channel_name_for_button = f"Channel {channel_id}" # Fallback name
             not_joined_channels_info.append({"name": f"Join {channel_name_for_button}", "link": "https://t.me/"})
 
         except Exception as e: # Other unexpected errors for get_chat_member
             all_joined = False
-            logger.error(f"Unexpected error checking membership for channel {channel_id} (user {user_id}): {e}. Adding generic join button.", exc_info=True)
+            logger.exception(f"CRITICAL UNEXPECTED ERROR checking membership for channel {channel_id} (user {user_id}): {e}. Adding generic join button.") # Use logger.exception
             not_joined_channels_info.append({"name": f"Join Channel {channel_id}", "link": "https://t.me/"})
         finally:
             logger.info(f"Completed membership check attempt for channel {channel_id}. Final status for {user_id}: {member_status if member_status != 'unknown' else 'error/unknown'}")
